@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+﻿FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -21,4 +21,4 @@ USER appuser
 
 EXPOSE 10000
 # Render injects PORT; 10000 is its default and the local fallback.
-CMD gunicorn "app:create_app()" --bind 0.0.0.0:${PORT:-10000} --workers 2 --timeout 120
+CMD gunicorn "app:create_app()" --bind 0.0.0.0:${PORT:-10000} --workers 1 --timeout 120
