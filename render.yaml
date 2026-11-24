@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: speech-studio-tts-stt
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEMO_DATA
+        value: "1"

@@ -19,6 +19,19 @@ Python 3.10+, Flask, SQLite, [gTTS](https://pypi.org/project/gTTS/) (text-to-spe
 
 > Both speech engines call free online Google endpoints, so an internet connection is required for conversions. Audio and text you convert are sent to those services.
 
+## Live demo
+
+Live demo: (link added after first deploy)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/MAHESH21723/TTS-and-STT)
+
+To host your own copy for free:
+
+1. Sign in to [Render](https://render.com) with GitHub.
+2. Click the **Deploy to Render** button above.
+3. Review the blueprint (`render.yaml`, which builds the `Dockerfile` with ffmpeg) and click **Apply**.
+
+Free-plan notes: the service sleeps after about 15 minutes idle, so the first request after a pause takes about a minute. The filesystem is ephemeral, so history and audio files resets on every restart or redeploy. The demo sets `DEMO_DATA=1`, which shows a "public demo" banner and deletes uploads and generated audio after an hour. Speech-to-text and text-to-speech call Google services, so the host needs internet access. You need no server or domain of your own, and local use is unchanged (see Setup below).
 ## Setup
 
 Requirements: Python 3.10 or newer, and [FFmpeg](https://ffmpeg.org/download.html) on your `PATH` (needed for everything except `.wav` uploads; the app shows a notice if it is missing).

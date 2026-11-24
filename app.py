@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import secrets
+import time
 import uuid
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
@@ -15,6 +16,7 @@ from dotenv import load_dotenv
 from flask import (Flask, flash, jsonify, redirect, render_template, request,
                    send_file, send_from_directory, session, url_for)
 from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import secure_filename
 
 from modules import database as db
@@ -25,6 +27,8 @@ from modules.stt_engine import LANGUAGE_LOCALES, transcribe_audio
 from modules.tts_engine import MAX_TEXT_LENGTH, SUPPORTED_LANGUAGES, generate_speech
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DEMO_NOTICE = "Public demo: data is shared and resets, don't enter personal information."
+DEMO_FILE_MAX_AGE = 60 * 60  # seconds; demo-mode audio files are pruned after an hour
 SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,200}$")
 STORED_PREFIX = re.compile(r"^(?:upload|record)_\d{8}_\d{6}_[0-9a-f]{6}_")
 RECORDING_TYPES = (("wav", "wav"), ("ogg", "ogg"), ("mp4", "m4a"), ("webm", "webm"))
@@ -59,6 +63,13 @@ def create_app(test_config: Optional[dict[str, Any]] = None) -> Flask:
         LOG_FILE=os.path.join(BASE_DIR, "speech_studio.log"),
         CSRF_ENABLED=True,
     )
+    on_render = bool(os.environ.get("RENDER"))
+    if on_render:
+        # Behind Render's HTTPS proxy: trust one hop of X-Forwarded-* headers.
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+        app.config["SESSION_COOKIE_SECURE"] = True
+        app.config["LOG_FILE"] = None  # log to the console; Render collects it
+    app.config["DEMO_DATA"] = os.environ.get("DEMO_DATA") == "1"
     if test_config:
         app.config.update(test_config)
 
@@ -94,6 +105,18 @@ def new_name(prefix: str, ext: str, original: str = "") -> str:
     if original:
         parts.append(secure_filename(os.path.splitext(original)[0])[:60] or "audio")
     return "_".join(parts) + f".{ext}"
+
+
+def prune_old_files(app: Flask) -> None:
+    """Demo mode only: delete uploads and generated audio older than an hour."""
+    cutoff = time.time() - DEMO_FILE_MAX_AGE
+    for key in ("UPLOAD_FOLDER", "GENERATED_AUDIO_FOLDER"):
+        for entry in os.scandir(app.config[key]):
+            try:
+                if entry.is_file() and entry.stat().st_mtime < cutoff:
+                    os.remove(entry.path)
+            except OSError:
+                logger.warning("Could not prune %s", entry.path)
 
 
 def remove_quietly(path: str) -> None:
@@ -146,8 +169,15 @@ def register_hooks(app: Flask) -> None:
             "ffmpeg_available": check_ffmpeg(),
             "csrf_token": session["csrf"],
             "max_text_length": MAX_TEXT_LENGTH,
+            "demo_mode": app.config["DEMO_DATA"],
+            "demo_notice": DEMO_NOTICE,
             "max_upload_mb": app.config["MAX_CONTENT_LENGTH"] // (1024 * 1024),
         }
+
+    @app.before_request
+    def prune_demo_files():
+        if app.config["DEMO_DATA"] and request.method == "POST":
+            prune_old_files(app)
 
     @app.before_request
     def check_csrf():
