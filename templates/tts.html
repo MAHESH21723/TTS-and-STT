@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="glass-panel glass-panel-cyan p-4 mb-4">
+      <h2 class="mb-4 d-flex align-items-center">
+        <i class="fa-solid fa-volume-high text-info me-2"></i> Text-to-Speech Converter
+      </h2>
+      <p class="text-muted mb-4">Convert your written text into high-quality spoken audio using Google's TTS engine. Select your language, paste your text, and click generate.</p>
+      
+      <form id="tts-form" action="{{ url_for('tts') }}" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <!-- Text Input -->
+        <div class="mb-4">
+          <label for="text" class="form-label fw-semibold">Enter Text:</label>
+          <textarea class="form-control form-control-custom" id="text" name="text" rows="6" maxlength="{{ max_text_length }}" placeholder="Type or paste your text here (up to {{ max_text_length }} characters)..." required>{{ text or '' }}</textarea>
+          <div class="d-flex justify-content-between mt-2">
+            <span class="text-danger small" id="text-error" role="alert"></span>
+            <span class="text-muted small"><span id="char-count">0</span> / {{ max_text_length }} characters</span>
+          </div>
+        </div>
+        
+        <!-- Language Selection -->
+        <div class="row align-items-center g-3 mb-4">
+          <div class="col-md-6">
+            <label for="language" class="form-label fw-semibold">Language / Accent:</label>
+            <select class="form-select form-select-custom form-control-custom" id="language" name="language">
+              {% for code, name in languages.items() %}
+                <option value="{{ code }}" {% if selected_lang == code %}selected{% endif %}>{{ name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6 text-md-end mt-4 pt-2">
+            <button type="submit" class="btn btn-premium-cyan w-100" id="btn-tts-submit">
+              <span id="btn-text"><i class="fa-solid fa-circle-play me-2"></i>Generate Speech</span>
+              <span id="btn-spinner" class="spinner-border spinner-border-custom text-white d-none" role="status"></span>
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Output Card (Visible after successful generation) -->
+    <div class="glass-panel p-4 mb-4 {% if not audio_file %}d-none{% endif %}" id="tts-result-container">
+      <h3 class="mb-4 text-success d-flex align-items-center">
+        <i class="fa-solid fa-circle-check me-2"></i>Speech Output Generated
+      </h3>
+      
+      <!-- Audio Player -->
+      <div class="audio-player-container mb-4">
+        <p class="fw-semibold small text-muted mb-2">Listen to generated speech:</p>
+        <audio id="tts-audio-player" class="custom-audio w-100" controls src="{% if audio_file %}{{ url_for('download_file', file_type='audio', filename=audio_file) }}{% endif %}">
+          Your browser does not support the audio element.
+        </audio>
+      </div>
+
+      <!-- Text Preview -->
+      <div class="mb-4">
+        <p class="fw-semibold small text-muted mb-2">Original Text:</p>
+        <div class="p-3 rounded-3" style="background: rgba(15, 23, 42, 0.4); border: 1px solid var(--border-glass); max-height: 150px; overflow-y: auto;">
+          <p class="mb-0 text-muted small" id="result-text-preview">{{ text }}</p>
+        </div>
+      </div>
+
+      <!-- Action Downloads -->
+      <div class="d-flex flex-wrap gap-2 justify-content-between">
+        <a id="download-mp3" href="{% if audio_file %}{{ url_for('download_file', file_type='audio', filename=audio_file) }}{% endif %}" class="btn btn-glass d-flex align-items-center">
+          <i class="fa-solid fa-download text-info me-2"></i> Download MP3
+        </a>
+        <div class="d-flex gap-2">
+          <a id="download-txt" href="{% if audio_file %}{{ url_for('download_file', file_type='txt', filename=audio_file) }}{% endif %}" class="btn btn-glass d-flex align-items-center">
+            <i class="fa-solid fa-file-arrow-down text-secondary me-2"></i> Download TXT
+          </a>
+          <a id="download-pdf" href="{% if audio_file %}{{ url_for('download_file', file_type='pdf', filename=audio_file) }}{% endif %}" class="btn btn-glass d-flex align-items-center">
+            <i class="fa-solid fa-file-pdf text-danger me-2"></i> Download PDF
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

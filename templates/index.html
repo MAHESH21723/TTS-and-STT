@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row align-items-center mb-5 mt-2">
+  <div class="col-lg-8">
+    <h1 class="display-5 fw-bold mb-2">Welcome to <span class="gradient-text">Speech Studio</span></h1>
+    <p class="lead text-muted">A unified platform for text-to-speech conversion and voice transcription. Fast, lightweight, and accessible.</p>
+  </div>
+  <div class="col-lg-4 text-lg-end">
+    <span class="badge bg-dark border border-secondary text-secondary py-2 px-3 fs-7">
+      <i class="fa-solid fa-server me-1 text-success"></i> Running locally
+    </span>
+  </div>
+</div>
+
+<!-- Quick Navigation Cards -->
+<div class="row g-4 mb-5">
+  <div class="col-md-6">
+    <div class="glass-panel glass-panel-cyan h-100 p-4 d-flex flex-column">
+      <div class="d-flex align-items-center mb-3">
+        <div class="bg-cyan-glow p-3 rounded-3 me-3" style="background: rgba(6, 182, 212, 0.15);">
+          <i class="fa-solid fa-volume-high text-info fs-3"></i>
+        </div>
+        <div>
+          <h3 class="mb-0">Text-to-Speech</h3>
+          <small class="text-muted">Convert written content to audio</small>
+        </div>
+      </div>
+      <p class="text-muted flex-grow-1">Type or paste your text, select from multiple natural languages, listen to the generated speech, and download as MP3.</p>
+      <a href="{{ url_for('tts') }}" class="btn btn-premium-cyan align-self-start mt-3">
+        Convert Text <i class="fa-solid fa-arrow-right ms-1"></i>
+      </a>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="glass-panel glass-panel-purple h-100 p-4 d-flex flex-column">
+      <div class="d-flex align-items-center mb-3">
+        <div class="bg-purple-glow p-3 rounded-3 me-3" style="background: rgba(139, 92, 246, 0.15);">
+          <i class="fa-solid fa-microphone text-purple fs-3" style="color: #a78bfa;"></i>
+        </div>
+        <div>
+          <h3 class="mb-0">Speech-to-Text</h3>
+          <small class="text-muted">Transcribe audio files or recordings</small>
+        </div>
+      </div>
+      <p class="text-muted flex-grow-1">Upload files (MP3, WAV, M4A) or use your system microphone to record live audio and convert spoken words into clean text instantly.</p>
+      <a href="{{ url_for('stt') }}" class="btn btn-premium-purple align-self-start mt-3">
+        Transcribe Speech <i class="fa-solid fa-arrow-right ms-1"></i>
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Metrics Row -->
+<div class="row g-4 mb-5">
+  <div class="col-md-4">
+    <div class="glass-panel stat-card text-center">
+      <div class="stat-val text-info">{{ stats.total }}</div>
+      <div class="stat-lbl">Total Conversions</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="glass-panel stat-card text-center">
+      <div class="stat-val text-success">{{ stats.tts }}</div>
+      <div class="stat-lbl">TTS Generated</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="glass-panel stat-card text-center">
+      <div class="stat-val text-warning">{{ stats.stt }}</div>
+      <div class="stat-lbl">STT Transcriptions</div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Conversions Section -->
+<div class="glass-panel p-4 mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="mb-0"><i class="fa-solid fa-history text-secondary me-2"></i>Recent Activity</h3>
+    <a href="{{ url_for('history') }}" class="btn btn-glass btn-sm">View Full History</a>
+  </div>
+  
+  {% if stats.recent %}
+    <div class="table-responsive">
+      <table class="table table-custom mb-0">
+        <thead>
+          <tr>
+            <th>Date & Time</th>
+            <th>Type</th>
+            <th>Language</th>
+            <th>Input Summary</th>
+            <th>Output / Audio</th>
+            <th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for conv in stats.recent %}
+            <tr>
+              <td>
+                <span class="text-muted small">
+                  {{ conv.created_at }}
+                </span>
+              </td>
+              <td>
+                {% if conv.operation_type == 'TTS' %}
+                  <span class="badge badge-custom badge-tts">TTS</span>
+                {% else %}
+                  <span class="badge badge-custom badge-stt">STT</span>
+                {% endif %}
+              </td>
+              <td>{{ languages[conv.language] or conv.language }}</td>
+              <td>
+                <span class="text-truncate d-inline-block" style="max-width: 200px;" title="{{ conv.input_data if conv.operation_type == 'TTS' else conv.input_data | display_name }}">
+                  {{ conv.input_data if conv.operation_type == 'TTS' else conv.input_data | display_name }}
+                </span>
+              </td>
+              <td>
+                {% if conv.operation_type == 'TTS' %}
+                  <div class="d-flex align-items-center">
+                    <button class="btn btn-sm btn-link text-info p-0 me-2" data-play-url="{{ url_for('download_file', file_type='audio', filename=conv.output_data) }}">
+                      <i class="fa-solid fa-play"></i> Play MP3
+                    </button>
+                  </div>
+                {% else %}
+                  <span class="text-truncate d-inline-block" style="max-width: 250px;" title="{{ conv.output_data }}">
+                    {{ conv.output_data }}
+                  </span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-glass px-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end border-secondary">
+                    {% if conv.operation_type == 'TTS' %}
+                      <li>
+                        <a class="dropdown-item" href="{{ url_for('download_file', file_type='audio', filename=conv.output_data) }}">
+                          <i class="fa-solid fa-download me-2"></i> Download Audio
+                        </a>
+                      </li>
+                      <li>
+                        <a class="dropdown-item" href="{{ url_for('download_file', file_type='txt', filename=conv.output_data) }}">
+                          <i class="fa-solid fa-file-lines me-2"></i> Download Text
+                        </a>
+                      </li>
+                    {% else %}
+                      <li>
+                        <a class="dropdown-item" href="{{ url_for('download_file', file_type='upload', filename=conv.input_data) }}">
+                          <i class="fa-solid fa-download me-2"></i> Download Source Audio
+                        </a>
+                      </li>
+                      <li>
+                        <a class="dropdown-item" href="{{ url_for('download_file', file_type='txt', filename=conv.input_data) }}">
+                          <i class="fa-solid fa-file-lines me-2"></i> Download TXT
+                        </a>
+                      </li>
+                      <li>
+                        <a class="dropdown-item" href="{{ url_for('download_file', file_type='pdf', filename=conv.input_data) }}">
+                          <i class="fa-solid fa-file-pdf me-2"></i> Download PDF
+                        </a>
+                      </li>
+                    {% endif %}
+                  </ul>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="fa-regular fa-folder-open fs-1 mb-3"></i>
+      <p>No speech conversion records found. Start converting text or transcribing audio!</p>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Shared Audio Playback Helper -->
+<div id="global-audio-player-wrapper" style="display:none;">
+  <audio id="global-audio-player" src=""></audio>
+</div>
+
+{% endblock %}

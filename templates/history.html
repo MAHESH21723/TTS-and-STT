@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row mb-4">
+  <div class="col-md-8">
+    <h2 class="mb-1"><i class="fa-solid fa-clock-rotate-left text-secondary me-2"></i>Conversion History</h2>
+    <p class="text-muted">Browse, search, and download your past Text-to-Speech and Speech-to-Text conversions.</p>
+  </div>
+  
+  {% if history %}
+    <div class="col-md-4 text-md-end align-self-center">
+      <form action="{{ url_for('clear_history') }}" method="POST" data-confirm="Delete all history records and files permanently? This cannot be undone.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="btn btn-outline-danger btn-sm">
+          <i class="fa-solid fa-trash-can me-1"></i> Clear Entire History
+        </button>
+      </form>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Search and Filtering Form -->
+<div class="glass-panel p-4 mb-4">
+  <form method="GET" action="{{ url_for('history') }}" class="row g-3">
+    <div class="col-md-5">
+      <label for="search" class="form-label fw-semibold text-muted small">Search input or transcription text:</label>
+      <div class="input-group">
+        <span class="input-group-text bg-dark border-secondary text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
+        <input type="text" class="form-control form-control-custom" id="search" name="search" placeholder="Type keyword..." value="{{ search }}">
+      </div>
+    </div>
+    
+    <div class="col-md-4">
+      <label for="operation" class="form-label fw-semibold text-muted small">Filter by Operation:</label>
+      <select class="form-select form-select-custom form-control-custom" id="operation" name="operation">
+        <option value="">All Operations</option>
+        <option value="TTS" {% if operation_filter == 'TTS' %}selected{% endif %}>Text-to-Speech (TTS)</option>
+        <option value="STT" {% if operation_filter == 'STT' %}selected{% endif %}>Speech-to-Text (STT)</option>
+      </select>
+    </div>
+    
+    <div class="col-md-3 d-flex align-items-end gap-2">
+      <button type="submit" class="btn btn-premium-cyan w-100 py-2">
+        <i class="fa-solid fa-filter me-1"></i> Filter
+      </button>
+      {% if search or operation_filter %}
+        <a href="{{ url_for('history') }}" class="btn btn-glass py-2" title="Reset Filters">
+          <i class="fa-solid fa-rotate-right"></i>
+        </a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<!-- History Log Container -->
+<div class="glass-panel p-4">
+  {% if history %}
+    <div class="table-responsive">
+      <table class="table table-custom mb-0">
+        <thead>
+          <tr>
+            <th>Date & Time</th>
+            <th>Type</th>
+            <th>Language</th>
+            <th>Input Content</th>
+            <th>Transcription / Audio</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in history %}
+            <tr>
+              <!-- Date/Time -->
+              <td>
+                <span class="text-muted small">{{ item.created_at }}</span>
+              </td>
+              
+              <!-- Operation Type Badge -->
+              <td>
+                {% if item.operation_type == 'TTS' %}
+                  <span class="badge badge-custom badge-tts">TTS</span>
+                {% else %}
+                  <span class="badge badge-custom badge-stt">STT</span>
+                {% endif %}
+              </td>
+              
+              <!-- Language -->
+              <td>
+                <span class="small">{{ languages[item.language] or item.language }}</span>
+              </td>
+              
+              <!-- Input Data Summary -->
+              <td>
+                {% if item.operation_type == 'TTS' %}
+                  <span class="text-truncate d-inline-block" style="max-width: 200px;" title="{{ item.input_data }}">
+                    {{ item.input_data }}
+                  </span>
+                {% else %}
+                  <!-- STT uploads show filename -->
+                  <span class="text-truncate text-muted d-inline-block small" style="max-width: 150px;" title="{{ item.input_data }}">
+                    <i class="fa-solid fa-music me-1"></i> {{ item.input_data | display_name }}
+                  </span>
+                {% endif %}
+              </td>
+              
+              <!-- Output Content / Audio playback -->
+              <td>
+                {% if item.operation_type == 'TTS' %}
+                  <div class="d-flex align-items-center">
+                    <button class="btn btn-sm btn-link text-info p-0 me-2" data-play-url="{{ url_for('download_file', file_type='audio', filename=item.output_data) }}">
+                      <i class="fa-solid fa-circle-play me-1"></i> Play
+                    </button>
+                  </div>
+                {% else %}
+                  <span class="text-truncate d-inline-block" style="max-width: 250px;" title="{{ item.output_data }}">
+                    {{ item.output_data }}
+                  </span>
+                {% endif %}
+              </td>
+              
+              <!-- Individual Actions -->
+              <td class="text-end">
+                <div class="d-flex justify-content-end align-items-center gap-2">
+                  <!-- File Download Options -->
+                  <div class="dropdown">
+                    <button class="btn btn-sm btn-glass px-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                      <i class="fa-solid fa-download"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end border-secondary">
+                      {% if item.operation_type == 'TTS' %}
+                        <li>
+                          <a class="dropdown-item" href="{{ url_for('download_file', file_type='audio', filename=item.output_data) }}">
+                            <i class="fa-solid fa-file-audio me-2 text-info"></i> Download Audio (MP3)
+                          </a>
+                        </li>
+                        <li>
+                          <a class="dropdown-item" href="{{ url_for('download_file', file_type='txt', filename=item.output_data) }}">
+                            <i class="fa-solid fa-file-lines me-2 text-secondary"></i> Download Text (TXT)
+                          </a>
+                        </li>
+                      {% else %}
+                        <li>
+                          <a class="dropdown-item" href="{{ url_for('download_file', file_type='upload', filename=item.input_data) }}">
+                            <i class="fa-solid fa-file-audio me-2 text-purple" style="color: #a78bfa;"></i> Download Source Audio
+                          </a>
+                        </li>
+                        <li>
+                          <a class="dropdown-item" href="{{ url_for('download_file', file_type='txt', filename=item.input_data) }}">
+                            <i class="fa-solid fa-file-lines me-2 text-secondary"></i> Download TXT File
+                          </a>
+                        </li>
+                        <li>
+                          <a class="dropdown-item" href="{{ url_for('download_file', file_type='pdf', filename=item.input_data) }}">
+                            <i class="fa-solid fa-file-pdf me-2 text-danger"></i> Download PDF Document
+                          </a>
+                        </li>
+                      {% endif %}
+                    </ul>
+                  </div>
+                  
+                  <!-- View Details Modal / Expand trigger (optional) -->
+                  <button class="btn btn-sm btn-glass px-2" type="button" title="View Full Text" data-view-details data-op="{{ item.operation_type }}" data-lang="{{ item.language }}" data-input="{{ item.input_data | display_name if item.operation_type == 'STT' else item.input_data }}" data-output="{{ item.output_data }}">
+                    <i class="fa-solid fa-eye"></i>
+                  </button>
+
+                  <!-- Delete Item Button -->
+                  <form action="{{ url_for('delete_item', item_id=item.id) }}" method="POST" data-confirm="Delete this record and its audio file?" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-sm btn-glass text-danger px-2" title="Delete record">
+                      <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="fa-regular fa-calendar-times fs-1 mb-3"></i>
+      <p>No conversion history matches the filter parameters.</p>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Modal: View History Details -->
+<div class="modal fade" id="historyDetailsModal" tabindex="-1" aria-labelledby="historyDetailsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content text-white" style="background: #111827; border: 1px solid var(--border-glass);">
+      <div class="modal-header border-bottom border-secondary">
+        <h5 class="modal-title" id="historyDetailsModalLabel">Conversion Record Details</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row mb-3">
+          <div class="col-6">
+            <small class="text-muted uppercase font-secondary d-block">OPERATION TYPE</small>
+            <span id="modal-op-type" class="badge badge-custom mt-1"></span>
+          </div>
+          <div class="col-6">
+            <small class="text-muted uppercase font-secondary d-block">LANGUAGE</small>
+            <span id="modal-lang" class="fw-semibold mt-1 d-inline-block"></span>
+          </div>
+        </div>
+        <hr class="border-secondary">
+        <div class="mb-3">
+          <label class="form-label fw-bold font-secondary text-info" id="modal-input-label">Input Data</label>
+          <div class="p-3 rounded-3" style="background: rgba(15, 23, 42, 0.5); border: 1px solid var(--border-glass); max-height: 200px; overflow-y: auto;">
+            <p id="modal-input-text" class="mb-0 small text-muted text-break" style="white-space: pre-wrap;"></p>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold font-secondary text-success" id="modal-output-label">Output Data</label>
+          <div class="p-3 rounded-3" style="background: rgba(15, 23, 42, 0.5); border: 1px solid var(--border-glass); max-height: 250px; overflow-y: auto;">
+            <p id="modal-output-text" class="mb-0 small text-muted text-break" style="white-space: pre-wrap;"></p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-top border-secondary">
+        <button type="button" class="btn btn-premium-purple btn-sm" id="modal-btn-copy">
+          <i class="fa-regular fa-copy"></i> Copy Content
+        </button>
+        <button type="button" class="btn btn-glass btn-sm" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Shared Audio Playback Helper -->
+<div id="global-audio-player-wrapper" style="display:none;">
+  <audio id="global-audio-player" src=""></audio>
+</div>
+
+{% endblock %}
