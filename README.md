@@ -21,7 +21,7 @@ Python 3.10+, Flask, SQLite, [gTTS](https://pypi.org/project/gTTS/) (text-to-spe
 
 ## Live demo
 
-Live demo: (link added after first deploy)
+**Live demo: [https://speech-studio-tts-stt.onrender.com](https://speech-studio-tts-stt.onrender.com)** (free hosting: the first visit after a quiet spell can take up to a minute to wake up)
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/MAHESH21723/TTS-and-STT)
 
